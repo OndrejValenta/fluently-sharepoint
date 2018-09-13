@@ -22,24 +22,24 @@ namespace KeenMate.FluentlySharePoint.Assets {
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    internal class Messages {
+    public class CamlQueries {
         
         private static global::System.Resources.ResourceManager resourceMan;
         
         private static global::System.Globalization.CultureInfo resourceCulture;
         
         [global::System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal Messages() {
+        internal CamlQueries() {
         }
         
         /// <summary>
         ///   Returns the cached ResourceManager instance used by this class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        internal static global::System.Resources.ResourceManager ResourceManager {
+        public static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("KeenMate.FluentlySharePoint.Assets.Messages", typeof(Messages).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("KeenMate.FluentlySharePoint.Assets.CamlQueries", typeof(CamlQueries).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -51,7 +51,7 @@ namespace KeenMate.FluentlySharePoint.Assets {
         ///   resource lookups using this strongly typed resource class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        internal static global::System.Globalization.CultureInfo Culture {
+        public static global::System.Globalization.CultureInfo Culture {
             get {
                 return resourceCulture;
             }
@@ -61,38 +61,11 @@ namespace KeenMate.FluentlySharePoint.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to About to call user-defined executor.
+        ///   Looks up a localized string similar to &lt;View  Scope=&quot;RecursiveAll&quot;&gt;{0}&lt;RowLimit&gt;{1}&lt;/RowLimit&gt;&lt;/View&gt;.
         /// </summary>
-        internal static string AboutToCallExecutor {
+        public static string WrappedWithRowLimit {
             get {
-                return ResourceManager.GetString("AboutToCallExecutor", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to About to execute the context.
-        /// </summary>
-        internal static string AboutToExecute {
-            get {
-                return ResourceManager.GetString("AboutToExecute", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Failed to execute the context.
-        /// </summary>
-        internal static string FailedToExecute {
-            get {
-                return ResourceManager.GetString("FailedToExecute", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Succeded to execute the context.
-        /// </summary>
-        internal static string SuccededToExecute {
-            get {
-                return ResourceManager.GetString("SuccededToExecute", resourceCulture);
+                return ResourceManager.GetString("WrappedWithRowLimit", resourceCulture);
             }
         }
     }

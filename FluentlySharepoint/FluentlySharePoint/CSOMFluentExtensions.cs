@@ -68,6 +68,19 @@ namespace KeenMate.FluentlySharePoint
 		}
 
 		/// <summary>
+		/// Sets authentication mode for the context
+		/// </summary>
+		/// <param name="operation"></param>
+		/// <param name="mode">Desired <see cref="ClientAuthenticationMode"/></param>
+		/// <returns></returns>
+		public static CSOMOperation SetAuthenticationMode(this CSOMOperation operation, ClientAuthenticationMode mode)
+		{
+			operation.Context.AuthenticationMode = mode;
+
+			return operation;
+		}
+
+	/// <summary>
 		/// Set online credentials with username and plain password
 		/// </summary>
 		/// <param name="operation"></param>
@@ -88,8 +101,23 @@ namespace KeenMate.FluentlySharePoint
 		/// <returns></returns>
 		public static CSOMOperation SetOnlineCredentials(this CSOMOperation operation, string username, SecureString password)
 		{
+			operation.SetAuthenticationMode(ClientAuthenticationMode.Default);
+			operation.LogDebug("Setting SharePoint Online credentials");
 			operation.Context.Credentials = new SharePointOnlineCredentials(username, password);
 
+			return operation;
+		}
+
+		public static CSOMOperation SetNetworkCredentials(this CSOMOperation operation, string username, string password)
+		{
+			operation.Context.Credentials = new NetworkCredential(username, password);
+			return operation;
+		}
+
+		public static CSOMOperation SetNetworkCredentials(this CSOMOperation operation, string domain, string username,
+			string password)
+		{
+			operation.Context.Credentials = new NetworkCredential(username, password, domain);
 			return operation;
 		}
 
@@ -101,6 +129,7 @@ namespace KeenMate.FluentlySharePoint
 		/// <returns></returns>
 		public static CSOMOperation SetTimeout(this CSOMOperation operation, int timeout)
 		{
+			operation.LogDebug($"Setting request timeout to {timeout}");
 			operation.Context.RequestTimeout = timeout;
 			return operation;
 		}
@@ -112,6 +141,7 @@ namespace KeenMate.FluentlySharePoint
 		/// <returns></returns>
 		public static CSOMOperation ResetTimeout(this CSOMOperation operation)
 		{
+			operation.LogDebug("Setting request timeout to default");
 			operation.Context.RequestTimeout = operation.DefaultTimeout;
 			return operation;
 		}
@@ -124,7 +154,8 @@ namespace KeenMate.FluentlySharePoint
 		/// <returns></returns>
 		public static CSOMOperation OnEachRequest(this CSOMOperation operation, Action<ClientContext> executor)
 		{
-			operation.Executor = executor;
+			operation.LogDebug("Operation executor set");
+			operation.OnBeingExecuted = executor;
 			return operation;
 		}
 
@@ -132,11 +163,12 @@ namespace KeenMate.FluentlySharePoint
 		/// On fail handler executed in all-catch block of clientContext.Execute() command
 		/// </summary>
 		/// <param name="operation">This operation</param>
-		/// <param name="handler">Handler that is assigned to CSOMOperation.FailHandler property</param>
+		/// <param name="handler">Handler that is assigned to CSOMOperation.OnFail property</param>
 		/// <returns>This operation</returns>
 		public static CSOMOperation Fail(this CSOMOperation operation, Func<CSOMOperation, Exception, CSOMOperation> handler)
 		{
-			operation.FailHandler = handler;
+			operation.LogDebug("Fail handler set");
+			operation.OnFail = handler;
 			return operation;
 		}
 	}

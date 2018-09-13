@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Linq;
-using KeenMate.FluentlySharePoint.Models;
+using System.Linq.Expressions;
 using Microsoft.SharePoint.Client;
 using KeenMate.FluentlySharePoint.Assets;
-using KeenMate.FluentlySharePoint.Enums;
-using ListTemplate = KeenMate.FluentlySharePoint.Enums.ListTemplate;
 
 namespace KeenMate.FluentlySharePoint.Extensions
 {
@@ -12,8 +9,12 @@ namespace KeenMate.FluentlySharePoint.Extensions
 	{
 		public static CSOMOperation LoadList(this CSOMOperation operation, string name, Action<ClientContext, Microsoft.SharePoint.Client.List> listLoader = null)
 		{
+			operation.LogDebug($"Loading list {name}");
+
 			var web = operation.DecideWeb();
 			var list = web.Lists.GetByTitle(name);
+
+			operation.LoadListRequired(list);
 
 			if (listLoader != null)
 				listLoader(operation.Context, list);
@@ -21,8 +22,6 @@ namespace KeenMate.FluentlySharePoint.Extensions
 			{
 				operation.Context.Load(list);
 			}
-
-			operation.Context.Load(list, l=>l.Title);
 
 			operation.SetLevel(OperationLevels.List, list);
 			operation.ActionQueue.Enqueue(new DeferredAction { ClientObject = operation.LastList, Action = DeferredActions.Load });
@@ -44,83 +43,74 @@ namespace KeenMate.FluentlySharePoint.Extensions
 			return operation;
 		}
 
-		//public static CSOMOperation GetColumns(this CSOMOperation operation, Action<ClientContext, FieldCollection> fieldsLoader = null)
-		//{
-		//	if (fieldsLoader != null)
-		//	{
-		//		fieldsLoader(operation.Context, operation.LastList.Fields);
-		//	}
-		//	else
-		//	{
-		//		operation.Context.Load(operation.LastList.Fields);
-		//	}
-
-		//	return operation;
-		//}
-
-		public static CSOMOperation ChangeColumn(this CSOMOperation operation, string columnName, FieldType? type = null, string displayName = null, bool? required = null, bool? uniqueValues = null)
+		
+		/// <summary>
+		/// Get items from the last loaded list using CAML query
+		/// </summary>
+		/// <param name="operation"></param>
+		/// <param name="queryString">CAML query string used for selection
+		/// When <paramref name="rowLimit"/> is used the <paramref name="queryString"/> is wrapped into View tag with Scope="RecursiveAll".
+		/// Also when there is not View tag in the <paramref name="queryString"/> it is wrapped into simple View tag with Scope="RecursiveAll" 
+		/// </param>
+		/// <param name="rowLimit"></param>
+		/// <returns>Loaded list items in standard CSOM <see cref="ListItemCollection"/></returns>
+		/// <remarks>
+		/// If you need bigger control over the CAML query use alternative <seealso cref="GetItems(KeenMate.FluentlySharePoint.CSOMOperation,CamlQuery)"/> method with CamlQuery parameter
+		/// </remarks>
+		public static ListItemCollection GetItems(this CSOMOperation operation, string queryString, int? rowLimit = null, params Expression<Func<ListItem, object>>[] retrievals)
 		{
-			var field = operation.LastList.Fields.GetByInternalNameOrTitle(columnName);
-
-			if (type.HasValue) field.TypeAsString = type.ToString();
-			if (!String.IsNullOrEmpty(displayName)) field.Title = displayName;
-			if (required.HasValue) field.Required = required.Value;
-			if (uniqueValues.HasValue) field.EnforceUniqueValues = uniqueValues.Value;
-
-			field.UpdateAndPushChanges(true);
-
-			return operation;
-		}
-
-		public static CSOMOperation DeleteColumn(this CSOMOperation operation, string columnName)
-		{
-			var field = operation.LastList.Fields.GetByInternalNameOrTitle(columnName);
-			field.DeleteObject();
-
-			return operation;
-		}
-
-		public static CSOMOperation AddColumn(this CSOMOperation operation, string name, FieldType type, string displayName = "", bool required = false, bool uniqueValues = false)
-		{
-			FieldCreationInformation fieldInformation = new FieldCreationInformation
-			{
-				InternalName = name,
-				DisplayName = String.IsNullOrEmpty(displayName) ? name : displayName,
-				FieldType = type,
-				Required = required,
-				UniqueValues = uniqueValues
-			};
-
-			operation.LastList.Fields.AddFieldAsXml(fieldInformation.ToXml(), true, AddFieldOptions.AddFieldInternalNameHint | AddFieldOptions.AddFieldToDefaultView);
-
-			return operation;
-		}
-
-		public static ListItemCollection GetItems(this CSOMOperation operation, string queryString, int? rowLimit = null)
-		{
+			string caml = queryString;
 			if (rowLimit != null)
-				queryString = string.Format(CamlQueries.WrappedWithRowLimit, queryString, rowLimit);
+				caml = string.Format(CamlQueries.WrappedWithRowLimit, queryString, rowLimit);
+			else
+			{
+				if (!caml.ToLower().Contains("<view>"))
+					caml = $"<View Scope=\"RecursiveAll\">{queryString}</View>";
+			}
+			var ca = new CamlQuery { ViewXml = caml };
 
-			var caml = new CamlQuery { ViewXml = $"<View>{queryString}</View>" };
-
-			return operation.GetItems(caml);
+			return operation.GetItems(ca, retrievals);
 		}
 
-		public static ListItemCollection GetItems(this CSOMOperation operation)
+		/// <summary>
+		/// Get all items from the last loaded list using standard <see cref="CamlQuery.CreateAllItemsQuery()"/>
+		/// </summary>
+		/// <param name="operation"></param>
+		/// <returns>Loaded list items in standard CSOM <see cref="ListItemCollection"/></returns>
+		public static ListItemCollection GetItems(this CSOMOperation operation, params Expression<Func<ListItem, object>>[] retrievals)
 		{
-			return GetItems(operation, CamlQuery.CreateAllItemsQuery());
+			return GetItems(operation, CamlQuery.CreateAllItemsQuery(), retrievals);
 		}
 
-		public static ListItemCollection GetItems(this CSOMOperation operation, CamlQuery query)
+		/// <summary>
+		/// Get items from the last loaded list using standard <see cref="CamlQuery"/>
+		/// </summary>
+		/// <param name="operation">Beware! Context executing method</param>
+		/// <param name="query">Query used in GetItems method</param>
+		/// <param name="retrievals"></param>
+		/// <returns>Loaded list items in standard CSOM <see cref="ListItemCollection"/></returns>
+		public static ListItemCollection GetItems(this CSOMOperation operation, CamlQuery query, params Expression<Func<ListItem, object>>[] retrievals)
 		{
+			operation.LogInfo("Getting items");
+			operation.LogDebug($"Query:\n{query.ViewXml}");
+
 			var listItems = operation.LastList.GetItems(query);
+			
+			if(retrievals != null)
+				operation.Context.Load(listItems, collection => collection.Include(retrievals));
+			else
+				operation.Context.Load(listItems);
 
-			operation.Context.Load(listItems);
 			operation.Execute();
 
 			return listItems;
 		}
 
+		/// <summary>
+		/// Remove all items from list
+		/// </summary>
+		/// <param name="operation"></param>
+		/// <returns></returns>
 		public static CSOMOperation DeleteItems(this CSOMOperation operation)
 		{
 			var caml = CamlQuery.CreateAllItemsQuery();
@@ -132,52 +122,27 @@ namespace KeenMate.FluentlySharePoint.Extensions
 
 		public static CSOMOperation DeleteItems(this CSOMOperation operation, string queryString)
 		{
-			var caml = new CamlQuery { ViewXml = queryString };
+			var caml = new CamlQuery { ViewXml = $"<View>{queryString}</View>" };
 
 			operation.DeleteItems(caml);
 
 			return operation;
 		}
 
+		/// <summary>
+		/// This method first loads all items valid for <paramref name="query"/> and then enqueue removal actions
+		/// </summary>
+		/// <param name="operation">Not context execution method</param>
+		/// <param name="query"><see cref="CamlQuery"/> parameter used for list item selection</param>
+		/// <returns></returns>
 		public static CSOMOperation DeleteItems(this CSOMOperation operation, CamlQuery query)
 		{
-			var items = operation.LastList.GetItems(query);
+			operation.LogInfo("Deleting items");
+			operation.LogDebug($"Query:\n{query}");
 
+			var items = operation.LastList.GetItems(query);
 			operation.Context.Load(items);
 			operation.ActionQueue.Enqueue(new DeferredAction { ClientObject = items, Action = DeferredActions.Delete });
-
-			return operation;
-		}
-
-		public static CSOMOperation CreateList(this CSOMOperation operation, string name, string template = null)
-		{
-			ListCreationInformation listInformation = new ListCreationInformation
-			{
-				Title = name,
-				ListTemplate = String.IsNullOrEmpty(template)
-					? operation.LastWeb.ListTemplates.GetByName("Custom List")
-					: operation.LastWeb.ListTemplates.GetByName(template)
-			};
-
-			var list = operation.LastWeb.Lists.Add(listInformation);
-
-			operation.LastWeb.Context.Load(list);
-			operation.SetLevel(OperationLevels.List, list);
-			operation.ActionQueue.Enqueue(new DeferredAction{ClientObject = list, Action = DeferredActions.Load});
-
-			return operation;
-		}
-
-		public static CSOMOperation CreateList(this CSOMOperation operation, string name, ListTemplate template)
-		{
-			return operation.CreateList(name, operation.LastWeb.ListTemplates.First(t => t.ListTemplateTypeKind == (int) template).Name);
-		}
-
-		public static CSOMOperation DeleteList(this CSOMOperation operation, string name)
-		{
-			var list = operation.LoadedLists[name];
-
-			operation.ActionQueue.Enqueue(new DeferredAction { ClientObject = list, Action = DeferredActions.Delete });
 
 			return operation;
 		}
